@@ -20,23 +20,24 @@
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function initials(n){ return n.split(/\s+/).map(function(w){return w[0];}).join('').slice(0,2).toUpperCase(); }
 
-  // Styles: Zähler immer sichtbar (grau; aktiv weiß) + Lade-Spinner/Schloss im Fake-Eintrag ausblenden
+  // Styles: Zähler immer sichtbar (grau; aktiv weiß) + Lade-Spinner ausblenden
+  // WICHTIG: Der Spinner-Wrapper (div.absolute) hängt am LI, nicht am Button!
   if(!document.getElementById('fake-viva-style')){
     var st=document.createElement('style'); st.id='fake-viva-style';
     st.textContent=
       'li[data-fake-viva="1"] button.category-button::after{color:oklch(0.5103 0 0)!important;}'+
       'li[data-fake-viva="1"][data-active="1"] button.category-button::after{color:var(--sb-color-white)!important;}'+
-      'li[data-fake-viva="1"] .ds-loading-spinner,'+
-      'li[data-fake-viva="1"] button.category-button > div.absolute{display:none!important;}';
+      'li[data-fake-viva="1"] .ds-loading-spinner{display:none!important;}'+
+      'li[data-fake-viva="1"] > div.absolute{display:none!important;}';
     document.head.appendChild(st);
   }
 
-  // Neu eingefügte Spinner/Schloss proaktiv entfernen
+  // Zusätzlich proaktiv entfernen (Sicherheitsnetz)
   function stripSpinner(){
-    document.querySelectorAll('li[data-fake-viva="1"] button.category-button > div.absolute, li[data-fake-viva="1"] .ds-loading-spinner').forEach(function(el){
-      var wrap = el.closest('button.category-button > div.absolute') || el;
-      if(wrap.querySelector('.ds-loading-spinner') || wrap.querySelector('svg')) wrap.remove();
+    document.querySelectorAll('li[data-fake-viva="1"] > div.absolute').forEach(function(w){
+      if(w.querySelector('.ds-loading-spinner') || w.querySelector('svg')) w.remove();
     });
+    document.querySelectorAll('li[data-fake-viva="1"] .ds-loading-spinner').forEach(function(s){ s.remove(); });
   }
 
   function nativeResults(){ return Array.prototype.slice.call(document.querySelectorAll('.search__results')).find(function(x){return !x.closest('#viva-view');}); }
@@ -80,24 +81,23 @@
     var clone=li.cloneNode(true); clone.setAttribute('data-fake-viva','1');
     var btn=clone.querySelector('button.category-button'); if(!btn) return;
 
-    // Label
     [btn, btn.querySelector('.ds-button__content')].filter(Boolean).forEach(function(c){ Array.prototype.slice.call(c.childNodes).forEach(function(n){ if(n.nodeType===3&&n.textContent.trim()) n.textContent=' '+VIVA_LABEL; }); });
     var img=btn.querySelector('img'); if(img) img.setAttribute('alt',VIVA_LABEL);
     btn.setAttribute('data-count',String(VIVA_COUNT));
 
-    // Zustands-Attribute entfernen, die Spinner/Schloss auslösen
+    // Zustands-Attribute/IDs entfernen, die Spinner/Schloss auslösen
     ['aria-busy','aria-pressed','aria-disabled','disabled','data-loading','data-busy','data-c13y-id','data-c13y-component'].forEach(function(a){ btn.removeAttribute(a); });
     ['data-c13y-id','data-c13y-component'].forEach(function(a){ clone.removeAttribute(a); });
-    // Falls schon ein Spinner/Schloss im Klon steckt: entfernen
-    Array.prototype.slice.call(btn.querySelectorAll('.ds-loading-spinner, div.absolute')).forEach(function(el){ var w=el.closest('div.absolute')||el; if(w.querySelector('.ds-loading-spinner')||w.querySelector('svg')) w.remove(); });
+    // vorhandene Spinner im Klon entfernen (Wrapper hängt am LI!)
+    Array.prototype.slice.call(clone.querySelectorAll('.ds-loading-spinner')).forEach(function(s){ (s.closest('div.absolute')||s).remove(); });
 
-    // Inaktiv darstellen + weiße Zählerfarbe entfernen
     btn.classList.remove('ds-button--solid','ds-button--primary'); btn.classList.add('ds-button--ghost','ds-button--neutral');
     Array.prototype.slice.call(btn.classList).filter(function(c){return c.indexOf('after:text')!==-1;}).forEach(function(c){btn.classList.remove(c);});
     btn.classList.remove('!cursor-default'); btn.style.cursor='pointer';
 
     btn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); activateViva(); });
     li.parentElement.insertBefore(clone, li.nextSibling);
+    stripSpinner();
     document.querySelectorAll('button.category-button').forEach(function(rb){ if(rb.closest('li[data-fake-viva]')||rb.dataset.vivaBound) return; rb.dataset.vivaBound='1'; rb.addEventListener('click', function(){ deactivateViva(); }); });
   }
 
